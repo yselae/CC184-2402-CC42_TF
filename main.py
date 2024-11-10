@@ -6,7 +6,10 @@ import folium
 from folium import Marker, PolyLine
 from folium.plugins import MiniMap
 import webbrowser
+import heapq as hq
 
+
+from tkinter import messagebox, ttk
 import tkinter as tk
 from tkinter import *
 
@@ -77,3 +80,42 @@ def show_map(path=None):
     #display_map(mapa_lima)
 
 #Algoritmo de Dijkstra para encontrar el camino más corto  
+
+def find_shortest_path(start, end):
+    # Inicializar costos y predecesores para cada nodo
+    costs = {node: float('inf') for node in G.nodes}
+    predecessors = {node: None for node in G.nodes}
+    costs[start] = 0  # El costo del nodo de inicio es 0
+    queue = [(0, start)]  # Cola de prioridad para los nodos por visitar
+
+    while queue:
+        current_cost, current_node = hq.heappop(queue)  # Extraer el nodo con el menor costo
+        if current_node == end:
+            break  # Si se llega al nodo de destino, termina el algoritmo
+
+        for neighbor in G.neighbors(current_node):
+            # Obtener el peso de la arista entre current_node y neighbor
+            distance = G[current_node][neighbor].get('weight', float('inf'))
+            cost = current_cost + distance  # Calcula el nuevo costo
+
+            # Actualizar costo y predecesor si se encontró un camino más corto
+            if cost < costs[neighbor]:
+                costs[neighbor] = cost
+                predecessors[neighbor] = current_node
+                hq.heappush(queue, (cost, neighbor))  # Añadir a la cola de prioridad
+
+    # Construir el camino de salida a partir de los predecesores
+    path = []
+    step = end
+    while step is not None:
+        path.append(step)
+        step = predecessors[step]
+    path.reverse()  # Invertir el camino para ir del inicio al fin
+
+    # Mostrar el mapa con la ruta resaltada
+    if costs[end] == float('inf'):
+        messagebox.showinfo("Sin Camino", f"No hay camino entre {start} y {end}.")
+        return None, None
+    else:
+        show_map(path)  # Muestra el mapa con la ruta
+        return path, costs[end]  # Retorna el camino y la distancia total
