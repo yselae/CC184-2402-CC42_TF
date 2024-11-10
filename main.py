@@ -7,7 +7,7 @@ from folium import Marker, PolyLine
 from folium.plugins import MiniMap
 import webbrowser
 import heapq as hq
-
+import io, base64, os
 
 from tkinter import messagebox, ttk
 import tkinter as tk
@@ -42,6 +42,10 @@ for i, row1 in paraderos_df.iterrows():
             distancia = euclidean_distance(row1['X'], row1['Y'], row2['X'], row2['Y'])
             G.add_edge(row1['Nombre'], row2['Nombre'], weight=distancia)  
 
+#Calcular la distancia promedio de las aristas
+distancias = {edge: data['weight'] for edge, data in G.edges.items()}
+promedio_distancia = sum(distancias.values()) / len(distancias)
+
 #Función para mostrar el camino más corto en un mapa
 def show_map(path=None):
     mapa_lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12) #Mapa Centro de Lima
@@ -51,11 +55,19 @@ def show_map(path=None):
     #Añadir paraderos al mapa
     for _, row in paraderos_df.iterrows():
         color = 'red' if path and row['Nombre'] in path else 'blue'
-        Marker([row['Latitud'], row['Longitud']], popup=row['Nombre'], icon=folium.Icon(color=color)).add_to(mapa_lima)
+        Marker(
+            [row['Latitud'], row['Longitud']],
+            popup=row['Nombre'],
+            icon=folium.Icon(color=color)
+        ).add_to(mapa_lima)
     
     #Añadir puntos de recarga al mapa
     for _, row in puntos_recarga_df.iterrows():
-        Marker([row['Latitud'], row['Longitud']], popup=row['Nombre'], icon=folium.Icon(color='green')).add_to(mapa_lima)
+        Marker(
+            [row['Latitud'], row['Longitud']],
+            popup=row['Nombre'],
+            icon=folium.Icon(color='green')
+        ).add_to(mapa_lima)
 
 #Agregar las líneas (aristas) entre los paraderos
     for (inicio, fin), data in G.edges.items():
@@ -65,57 +77,128 @@ def show_map(path=None):
         #Verificar si la arista (inicio, fin) está en el camino mínimo
         if path and inicio in path and fin in path:
             idx_inicio = path.index(inicio)
-            if idx_inicio < len(path) - 1 and path[idx_inicio + 1] == fin:
-                color = 'red'
-            else:
-                color = 'blue'
+            color = 'red' if idx_inicio < len(path) - 1 and path[idx_inicio + 1] == fin else 'blue'
         else:
-            color = 'blue'
+            #Aristas de color azul si están debajo de la distancia promedio, gris en caso contrario
+            color = 'blue' if data['weight'] <= promedio_distancia else 'gray'
         
         #Añadir la línea con el color determinado
-        PolyLine(locations=[(pos_inicio.x, pos_inicio.y), (pos_fin.x, pos_fin.y)], 
-                 color=color, weight=2, tooltip=f'distancia: {data["weight"]:.2f} km').add_to(mapa_lima)
-    
-    #Comentar para implementar despues
-    #display_map(mapa_lima)
+        PolyLine(
+            locations=[(pos_inicio[0], pos_inicio[1]), (pos_fin[0], pos_fin[1])],
+            color=color,
+            weight=2,
+            tooltip=f'Distancia: {data["weight"]:.2f} km'
+        ).add_to(mapa_lima)
+        
+    #Muestra el mapa
+    display_map(mapa_lima)
 
 #Algoritmo de Dijkstra para encontrar el camino más corto  
-
-def find_shortest_path(start, end):
-    # Inicializar costos y predecesores para cada nodo
+def dijkstra(start, end):
+    #Inicializar costos y predecesores para cada nodo
     costs = {node: float('inf') for node in G.nodes}
     predecessors = {node: None for node in G.nodes}
-    costs[start] = 0  # El costo del nodo de inicio es 0
-    queue = [(0, start)]  # Cola de prioridad para los nodos por visitar
+    costs[start] = 0  
+    queue = [(0, start)]  #Cola de prioridad para los nodos por visitar
 
     while queue:
-        current_cost, current_node = hq.heappop(queue)  # Extraer el nodo con el menor costo
+        current_cost, current_node = hq.heappop(queue)  #Extraer el nodo con el menor costo
         if current_node == end:
-            break  # Si se llega al nodo de destino, termina el algoritmo
+            break  
 
         for neighbor in G.neighbors(current_node):
-            # Obtener el peso de la arista entre current_node y neighbor
+            #Obtener el peso de la arista entre current_node y neighbor
             distance = G[current_node][neighbor].get('weight', float('inf'))
-            cost = current_cost + distance  # Calcula el nuevo costo
+            cost = current_cost + distance  #Calcula el nuevo costo
 
-            # Actualizar costo y predecesor si se encontró un camino más corto
+            #Actualizar costo y predecesor si se encontró un camino más corto
             if cost < costs[neighbor]:
                 costs[neighbor] = cost
                 predecessors[neighbor] = current_node
-                hq.heappush(queue, (cost, neighbor))  # Añadir a la cola de prioridad
+                hq.heappush(queue, (cost, neighbor))  #Añadir a la cola de prioridad
 
-    # Construir el camino de salida a partir de los predecesores
+    #Construir el camino de salida a partir de los predecesores
     path = []
     step = end
     while step is not None:
         path.append(step)
         step = predecessors[step]
-    path.reverse()  # Invertir el camino para ir del inicio al fin
+    path.reverse()  #Invertir el camino para ir del inicio al fin
 
-    # Mostrar el mapa con la ruta resaltada
+    #Mostrar el mapa con la ruta resaltada
     if costs[end] == float('inf'):
-        messagebox.showinfo("Sin Camino", f"No hay camino entre {start} y {end}.")
         return None, None
     else:
-        show_map(path)  # Muestra el mapa con la ruta
-        return path, costs[end]  # Retorna el camino y la distancia total
+        show_map(path)  #Muestra el mapa con la ruta
+        return path, costs[end]  #Retorna el camino y la distancia total
+
+#Crear un diccionario para almacenar las distancias entre los paraderos y puntos de recarga conectados
+distancias = {}
+for i, row1 in paraderos_df.iterrows():
+    for j, row2 in paraderos_df.iterrows():
+        if i < j:
+            distancia = euclidean_distance(row1['X'], row1['Y'], row2['X'], row2['Y'])
+            distancias[(row1['Nombre'], row2['Nombre'])] = distancia
+            distancias[(row2['Nombre'], row1['Nombre'])] = distancia 
+
+#Calcula la distancia promedio
+promedio_distancia = sum(distancias.values()) / len(distancias)
+
+#Función para mostrar el mapa base
+def show_map():
+    mapa_Lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12) 
+    minimap = MiniMap()  
+    mapa_Lima.add_child(minimap)  
+    display_map(mapa_Lima)
+
+#Función para mostrar el mapa en el navegador
+def display_map(map_object):
+    data = io.BytesIO()  #Crea un buffer en memoria para guardar los datos del mapa
+    map_object.save(data, close_file=False)  #Guarda el mapa en el buffer
+    encoded_map = base64.b64encode(data.getvalue()).decode('utf-8')  # Codifica el mapa en base64
+    html = f"<html><body><iframe src='data:text/html;base64,{encoded_map}' width='100%' height='100%' style='border:none;'></iframe></body></html>"  #Crea una cadena HTML con el mapa
+    with open("map.html", "w") as file:
+        file.write(html)  #Escribe el HTML en un archivo
+    webbrowser.open('file://' + os.path.realpath("map.html"))  #Abre el archivo en el navegador
+
+
+
+
+
+
+
+
+# Interfaz gráfica con tkinter
+def run_app():
+    def on_find_route():
+        start = start_entry.get()
+        end = end_entry.get()
+        if start and end:
+            path, distance = dijkstra(start, end)
+            if path:
+                messagebox.showinfo("Camino encontrado", f"Camino: {path}\nDistancia: {distance:.2f} km")
+        else:
+            messagebox.showwarning("Entrada inválida", "Por favor, ingrese los nombres de origen y destino.")
+
+    # Crear ventana principal
+    root = tk.Tk()
+    root.title("Optimización de rutas de transporte")
+    root.geometry("400x200")
+
+    # Etiquetas y entradas
+    ttk.Label(root, text="Paradero de origen:").grid(column=0, row=0, padx=10, pady=5)
+    start_entry = ttk.Entry(root, width=30)
+    start_entry.grid(column=1, row=0)
+
+    ttk.Label(root, text="Paradero de destino:").grid(column=0, row=1, padx=10, pady=5)
+    end_entry = ttk.Entry(root, width=30)
+    end_entry.grid(column=1, row=1)
+
+    # Botón para encontrar la ruta
+    find_route_button = ttk.Button(root, text="Encontrar ruta", command=on_find_route)
+    find_route_button.grid(column=1, row=2, pady=10)
+
+    root.mainloop()
+
+# Ejecutar la aplicación
+run_app()
