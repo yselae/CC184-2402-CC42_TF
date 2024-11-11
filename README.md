@@ -119,69 +119,75 @@ Acceso a puntos de recarga: Si el usuario necesita recargar su tarjeta, el algor
 El aplicativo mostrará la ruta óptima en un mapa de la ciudad, indicando los tiempos estimados y las paradas intermedias.
 
 ## 4.	Diseño de aplicativo
-    Procesos del Diseño del Aplicativo
-    El diseño del aplicativo se enfoca en la optimización de rutas utilizando grafos. Para abordar este problema, hemos implementado un algoritmo de búsqueda de caminos más cortos (Dijkstra) en Python y varias bibliotecas como NetworkX para la creación y manipulación de grafos, y Folium para la visualización geográfica.
+Procesos del Diseño del Aplicativo
 
-    1.	Análisis de Requisitos:
-    •	Se identificaron las necesidades del sistema para optimizar rutas entre paraderos y puntos de recarga en una ciudad.
-    •	Se consideraron funcionalidades como la visualización de rutas, cálculo de distancias y selección de estaciones mediante una interfaz de usuario.
+El diseño del aplicativo se enfoca en la optimización de rutas utilizando grafos. Para abordar este problema, hemos implementado un algoritmo de búsqueda de caminos más cortos (Dijkstra) en Python y varias bibliotecas como NetworkX para la creación y manipulación de grafos, y Folium para la visualización geográfica.
 
-    2.	Diseño del Sistema:
-    •	Se empleó un Grafo no dirigido para modelar los paraderos y puntos de recarga, donde los nodos representan estaciones y las aristas     representan rutas entre ellas.
-    •	Las distancias entre nodos se calcularon usando la distancia euclidiana.
-    •	La solución del camino más corto entre dos estaciones se resolvió utilizando el algoritmo de Dijkstra, que es eficiente para este tipo de problemas.
+### 1.	Análisis de Requisitos:
+•	Se identificaron las necesidades del sistema para optimizar rutas entre paraderos y puntos de recarga en una ciudad.
+•	Se consideraron funcionalidades como la visualización de rutas, cálculo de distancias y selección de estaciones mediante una interfaz de usuario.
 
-    3.	Implementación:
-    •	Utilizamos Python y librerías como Pandas para la manipulación de datos, NetworkX para la creación del grafo, Folium para la visualización de mapas, y Tkinter para la interfaz gráfica.
-    •	Se desarrolló una función para cargar datos desde archivos Excel y crear los nodos y aristas del grafo.
-    •	Se creó una función que muestra un mapa interactivo con los paraderos y rutas utilizando Folium.
-    •	Se implementó una interfaz con Tkinter para que los usuarios seleccionen los paraderos de origen y destino.
+### 2.	Diseño del Sistema:
+•	Se empleó un Grafo no dirigido para modelar los paraderos y puntos de recarga, donde los nodos representan estaciones y las aristas     representan rutas entre ellas.
+•	Las distancias entre nodos se calcularon usando la distancia euclidiana.
+•	La solución del camino más corto entre dos estaciones se resolvió utilizando el algoritmo de Dijkstra, que es eficiente para este tipo de problemas.
 
-    Requisitos del Aplicativo
+### 3.	Implementación:
+•	Utilizamos Python y librerías como Pandas para la manipulación de datos, NetworkX para la creación del grafo, Folium para la visualización de mapas, y Tkinter para la interfaz gráfica.
+•	Se desarrolló una función para cargar datos desde archivos Excel y crear los nodos y aristas del grafo.
+•	Se creó una función que muestra un mapa interactivo con los paraderos y rutas utilizando Folium.
+•	Se implementó una interfaz con Tkinter para que los usuarios seleccionen los paraderos de origen y destino.
 
-    Requisitos Funcionales:
-    •	Cargar y procesar datos desde archivos Excel con información de paraderos y puntos de recarga.
-    •	Crear un grafo con nodos (paraderos y puntos de recarga) y aristas (rutas entre paraderos).
-    •	Calcular la ruta más corta entre dos paraderos utilizando el algoritmo de Dijkstra.
-    •	Visualizar el mapa interactivo con los paraderos, puntos de recarga, y la ruta óptima.
-    •	Permitir la selección de paraderos de origen y destino mediante una interfaz gráfica.
+Requisitos del Aplicativo
+
+Requisitos Funcionales:
+•	Cargar y procesar datos desde archivos Excel con información de paraderos y puntos de recarga.
+•	Crear un grafo con nodos (paraderos y puntos de recarga) y aristas (rutas entre paraderos).
+•	Calcular la ruta más corta entre dos paraderos utilizando el algoritmo de Dijkstra.
+•	Visualizar el mapa interactivo con los paraderos, puntos de recarga, y la ruta óptima.
+•	Permitir la selección de paraderos de origen y destino mediante una interfaz gráfica.
     Requisitos No Funcionales:
 
-    •	Eficiencia: El algoritmo de Dijkstra debe calcular rutas de manera rápida, incluso con un número elevado de nodos y aristas.
-    •	Usabilidad: La interfaz debe ser intuitiva, permitiendo al usuario seleccionar estaciones de manera sencilla.
-    •	Escalabilidad: El sistema debe poder adaptarse a la inclusión de nuevos paraderos y puntos de recarga sin afectar su desempeño.
-    •	Portabilidad: El aplicativo debe ser compatible con diferentes sistemas operativos donde se pueda ejecutar Python.
-    Diseño de Interfaz de Usuario
+•	Eficiencia: El algoritmo de Dijkstra debe calcular rutas de manera rápida, incluso con un número elevado de nodos y aristas.
+•	Usabilidad: La interfaz debe ser intuitiva, permitiendo al usuario seleccionar estaciones de manera sencilla.
+•	Escalabilidad: El sistema debe poder adaptarse a la inclusión de nuevos paraderos y puntos de recarga sin afectar su desempeño.
+•	Portabilidad: El aplicativo debe ser compatible con diferentes sistemas operativos donde se pueda ejecutar Python.
+Diseño de Interfaz de Usuario
 
-    •	Se utilizó Tkinter para crear una interfaz gráfica, incluye:
-    •	Un menú desplegable para seleccionar paraderos de origen y destino.
-    •	Botones para buscar rutas y mostrar la distancia calculada.
-    •	Ventanas emergentes (messagebox) para mostrar resultados al usuario.
-    •	Para la visualización del mapa:
-    •	Folium se empleó para generar un mapa interactivo que muestra paraderos, puntos de recarga, y la ruta más corta destacada.
+•	Se utilizó Tkinter para crear una interfaz gráfica, incluye:
+•	Un menú desplegable para seleccionar paraderos de origen y destino.
+•	Botones para buscar rutas y mostrar la distancia calculada.
+•	Ventanas emergentes (messagebox) para mostrar resultados al usuario.
+•	Para la visualización del mapa:
+•	Folium se empleó para generar un mapa interactivo que muestra paraderos, puntos de recarga, y la ruta más corta destacada.
 
 ## 5.	Validación de datos y pruebas
-    Entradas y Salidas:
 
-    •	Entradas:
-    o	Archivos Excel (paraderos.xlsx y puntos_recarga.xlsx) que contienen la información de coordenadas, nombres y datos adicionales de paraderos y puntos de recarga.
-    o	Selección del paradero de origen y destino por parte del usuario.
+#### •	Entradas:
+•	Archivos Excel (paraderos.xlsx y puntos_recarga.xlsx) que contienen la información de coordenadas, nombres y datos adicionales de paraderos y puntos de recarga.
 
-    •	Salidas:
-    o	Camino más corto entre los paraderos seleccionados.
-    o	Distancia total del recorrido.
-    o	Mapa interactivo que muestra la ruta en un navegador web.
+•	Selección del paradero de origen y destino por parte del usuario.
 
+#### •	Salidas:
+•	Camino más corto entre los paraderos seleccionados.
 
-### Conclusión
+•	Distancia total del recorrido.
 
-El aplicativo optimizará la experiencia de los usuarios del transporte público, permitiéndoles ahorrar tiempo en sus trayectos y facilitar el acceso a puntos de venta y recarga. Esto mejorará la calidad de vida de los limeños al reducir el tiempo que pasan en transporte y facilitar su acceso a recursos importantes, como la recarga de tarjetas.
-
-En resumen, nuestra propuesta es desarrollar un aplicativo en Python basado en el Algoritmo de Dijkstra, enfocado en optimizar las rutas de transporte en Lima, lo que permitirá a los usuarios realizar sus viajes de forma más eficiente.
+•	Mapa interactivo que muestra la ruta en un navegador web.
 
 
+## 6.  Conclusión
 
-## 4. Referencias Bibliográficas
+La implementación del algoritmo de Dijkstra demostró ser una solución eficiente para el cálculo de rutas óptimas en sistemas de transporte urbano. Al modelar el problema con un grafo que incluye paraderos y puntos de recarga, se logró obtener resultados rápidos y precisos, incluso con un número considerable de nodos y conexiones. Esta elección de algoritmo permitió optimizar tanto la rapidez del cálculo como el uso de recursos, haciéndolo adecuado para aplicaciones en ciudades de tamaño medio. Sin embargo, en sistemas más grandes o con una mayor cantidad de datos en tiempo real, sería beneficioso explorar otras opciones que podrían ofrecer mejoras en eficiencia.
+
+El uso de Folium para la visualización geográfica del sistema resultó ser una herramienta que nos ayudó bastante para mejorar la experiencia del usuario. La capacidad de mostrar mapas interactivos, donde se resaltan tanto los paraderos como las rutas óptimas, facilita la comprensión y el análisis de los resultados obtenidos. Esto no solo mejora la interacción del usuario con el sistema, sino que también permite una presentación visual clara y atractiva, lo que es esencial para aplicaciones prácticas y demostraciones.
+
+Finalmente, el diseño modular del aplicativo garantiza su facilidad de mantenimiento y escalabilidad. El sistema está preparado para incorporar futuras mejoras, como la integración de datos en tiempo real mediante APIs externas para información de tráfico o tiempos de espera. Además, se podría extender el análisis para incluir rutas ecológicas, optimizando no solo el tiempo y la distancia, sino también el impacto ambiental de los recorridos. Esta flexibilidad sugiere que la aplicación tiene un alto potencial para adaptarse a necesidades emergentes, lo que la convierte en una solución versátil para optimizar sistemas de transporte en diversas ciudades.
+
+
+
+
+## 7. Referencias Bibliográficas
 
 Conocer puntos de venta y recarga de tarjetas del Metropolitano y Corredores complementarios. (2021, 25 octubre). Servicio - Autoridad de Transporte Urbano Para Lima y Callao - Plataforma del Estado Peruano. https://www.gob.pe/15049-conocer-puntos-de-venta-y-recarga-de-tarjetas-del-metropolitano-y-corredores-complementarios 
 
