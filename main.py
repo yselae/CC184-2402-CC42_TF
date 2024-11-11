@@ -171,32 +171,73 @@ def display_map(map_object):
 # Interfaz gráfica con tkinter
 def run_app():
     def on_find_route():
-        start = start_entry.get()
-        end = end_entry.get()
+        start = start_combobox.get()
+        end = end_combobox.get()
         if start and end:
             path, distance = dijkstra(start, end)
             if path:
-                messagebox.showinfo("Camino encontrado", f"Camino: {path}\nDistancia: {distance:.2f} km")
+                messagebox.showinfo("Camino encontrado", f"Camino: {' -> '.join(path)}\nDistancia: {distance:.2f} km")
+            else:
+                messagebox.showwarning("Camino no encontrado", "No se pudo encontrar una ruta entre los paraderos seleccionados.")
         else:
-            messagebox.showwarning("Entrada inválida", "Por favor, ingrese los nombres de origen y destino.")
+            messagebox.showwarning("Entrada inválida", "Por favor, seleccione los paraderos de origen y destino.")
 
+    # Funciones para los otros botones
+    def mostrar_paraderos():
+        messagebox.showinfo("Paraderos", "Mostrando todos los paraderos disponibles en el mapa.")
+
+    def mostrar_puntos_recarga():
+        messagebox.showinfo("Puntos de Recarga", "Mostrando todos los puntos de recarga disponibles.")
+
+    def mostrar_corredores():
+        messagebox.showinfo("Corredores", "Mostrando todos los corredores en el mapa.")
+
+    def agregar_paradero():
+        messagebox.showinfo("Agregar Paradero", "Función para agregar un nuevo paradero.")
+
+    def filtrar_paraderos_cercanos():
+        messagebox.showinfo("Paraderos Cercanos", "Mostrando paraderos cercanos al punto seleccionado.")
+    
     # Crear ventana principal
     root = tk.Tk()
     root.title("Optimización de rutas de transporte")
-    root.geometry("400x200")
+    root.geometry("600x400")
+    root.configure(bg="lightgray")
 
-    # Etiquetas y entradas
-    ttk.Label(root, text="Paradero de origen:").grid(column=0, row=0, padx=10, pady=5)
-    start_entry = ttk.Entry(root, width=30)
-    start_entry.grid(column=1, row=0)
+    # Etiqueta de bienvenida
+    ttk.Label(root, text="Bienvenido a Optimización de Rutas", font=("Helvetica", 16, "bold")).grid(column=0, row=0, columnspan=3, pady=20)
 
-    ttk.Label(root, text="Paradero de destino:").grid(column=0, row=1, padx=10, pady=5)
-    end_entry = ttk.Entry(root, width=30)
-    end_entry.grid(column=1, row=1)
+    # Etiquetas y entradas para paraderos de origen y destino
+    ttk.Label(root, text="Paradero de origen:").grid(column=0, row=1, padx=10, pady=5, sticky="e")
+    start_combobox = ttk.Combobox(root, values=paraderos_df['Nombre'].tolist(), width=35)
+    start_combobox.grid(column=1, row=1, padx=10, pady=5, sticky="w")
+
+    ttk.Label(root, text="Paradero de destino:").grid(column=0, row=2, padx=10, pady=5, sticky="e")
+    end_combobox = ttk.Combobox(root, values=paraderos_df['Nombre'].tolist(), width=35)
+    end_combobox.grid(column=1, row=2, padx=10, pady=5, sticky="w")
 
     # Botón para encontrar la ruta
     find_route_button = ttk.Button(root, text="Encontrar ruta", command=on_find_route)
-    find_route_button.grid(column=1, row=2, pady=10)
+    find_route_button.grid(column=1, row=3, pady=15, sticky="ew")
+
+    # Separador
+    ttk.Separator(root, orient="horizontal").grid(row=4, column=0, columnspan=3, sticky="ew", padx=10, pady=15)
+
+    # Botones adicionales para otras funcionalidades
+    button_frame = tk.Frame(root, bg="lightgray")
+    button_frame.grid(row=5, column=0, columnspan=3, pady=10)
+
+    ttk.Button(button_frame, text="Mostrar Todos los Paraderos", command=mostrar_paraderos).grid(row=0, column=0, padx=10, pady=5, sticky="ew")
+    ttk.Button(button_frame, text="Mostrar Puntos de Recarga", command=mostrar_puntos_recarga).grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+    ttk.Button(button_frame, text="Mostrar Todos los Corredores", command=mostrar_corredores).grid(row=0, column=2, padx=10, pady=5, sticky="ew")
+
+    ttk.Button(button_frame, text="Agregar Paradero o Punto de Recarga", command=agregar_paradero).grid(row=1, column=0, padx=10, pady=5, sticky="ew")
+    ttk.Button(button_frame, text="Filtrar Paraderos Cercanos", command=filtrar_paraderos_cercanos).grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+
+    # Ajustar la columna para que los botones ocupen el espacio disponible
+    button_frame.grid_columnconfigure(0, weight=1)
+    button_frame.grid_columnconfigure(1, weight=1)
+    button_frame.grid_columnconfigure(2, weight=1)
 
     root.mainloop()
 
