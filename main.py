@@ -7,7 +7,7 @@ from folium import Marker, PolyLine
 from folium.plugins import MiniMap
 import webbrowser
 import heapq as hq
-import io, base64, os
+import io, base64, os, random
 import matplotlib.pyplot as plt
 
 from tkinter import messagebox, ttk
@@ -245,6 +245,213 @@ def show_graph_map():
         pos_fin = (G.nodes[fin]['pos'][1], G.nodes[fin]['pos'][0])  #Obtener posición de fin
         PolyLine(locations=[pos_inicio, pos_fin], color='blue', weight=2, tooltip=f'Distancia: {distancia:.2f} km').add_to(mapa_lima)
     display_map(mapa_lima)
+
+
+###################################################################agregar dsp
+#Función para actualizar la selección de paradero
+def seleccion_paradero(valor, label):
+    label.config(text=f"Paradero seleccionado: {valor.get()}")  #Actualiza la etiqueta con el paradero seleccionado
+##################################################################
+
+#Función para mostrar el camino mínimo en el grafo del mapa
+def show_min_path_graph():
+    #Verifica si la variable 'path' está definida y contiene elementos
+    if not hasattr(show_min_path_graph, 'path') or show_min_path_graph.path is None:
+        messagebox.showwarning("Advertencia", "Primero calcule la distancia mínima.")
+        return
+    #Llama a la función para mostrar el mapa con el camino mínimo
+    show_graph_map(min_path=show_min_path_graph.path)
+
+#Función para agregar un nuevo nodo (paradero o punto de recarga)
+def agregar_nuevo_nodo(lat, lon, tipo, nombre, top_level_window):
+    nuevo_nodo = nombre  #Nombre para el nuevo nodo
+    if tipo == "paradero":
+        paraderos_df.loc[len(paraderos_df)] = [nuevo_nodo, lat, lon]  #Añade el nuevo paradero al DataFrame de paraderos
+    elif tipo == "punto_recarga":
+        puntos_recarga_df.loc[len(puntos_recarga_df)] = [nuevo_nodo, lat, lon, "Direccion", "Horario"]  #Añade el nuevo punto de recarga al DataFrame de puntos de recarga
+
+    #Actualizar grafo
+    G.add_node(nuevo_nodo, pos=(lat, lon), tipo=tipo)
+    
+    #Selecciona nodos aleatorios para conectar el nuevo nodo
+    nodos_existentes = list(G.nodes)
+    random.shuffle(nodos_existentes)  #Mezcla los nodos existentes
+    num_conexiones = random.randint(4, 9)  #Selecciona un número aleatorio de conexiones
+    nodos_seleccionados = nodos_existentes[:num_conexiones]
+    
+    for nodo in nodos_seleccionados:
+        if nodo != nuevo_nodo:
+            #Calcular distancia euclidiana
+            nodo_pos = G.nodes[nodo]['pos']
+            distancia = euclidean_distance(lat, lon, nodo_pos[0], nodo_pos[1])
+            G.add_edge(nuevo_nodo, nodo, weight=distancia)  #Añade la arista con el peso de la distancia
+    
+    actualizar_dropdowns()  #Actualiza los menús desplegables
+    top_level_window.destroy()  #Cierra la ventana de agregar nodo
+    messagebox.showinfo("Confirmación", "Nodo agregado exitosamente")  #Muestra un mensaje de confirmación
+
+# Función para calcular la distancia mínima entre dos nodos (paraderos o puntos de recarga)
+def calcular_minima_distancia():
+    global path
+    start = valor1.get()  #Obtiene el nodo inicial del menú desplegable
+    end = valor2.get()  #Obtiene el nodo final del menú desplegable
+    
+    #Verifica que los nodos seleccionados no sean los mismos
+    if start == end:
+        messagebox.showinfo("Error", "Selecciona dos nodos diferentes") 
+        return
+    
+    #Calcula el camino y la distancia mínima usando Dijkstra
+    path, distance = dijkstra(start, end)
+    
+    #Verifica si hay una ruta disponible
+    if path is None:
+        label_distancia.config(text="No hay ruta disponible entre los nodos seleccionados")
+    else:
+        arista_descriptions = []
+        
+        #Calcula la descripción de cada arista en el camino
+        for i in range(len(path) - 1):
+            start_node = path[i]
+            end_node = path[i + 1]
+            arista = f"{G[start_node][end_node]['weight']:.2f}"
+            arista_descriptions.append(arista)
+        
+        #Construye la descripción de la suma de aristas y distancia
+        aristas_sum = " + ".join(arista_descriptions)
+        label_distancia.config(
+            #Muestra la distancia mínima
+            text=f"Ruta: {' -> '.join(path)}\nSuma de las aristas: {aristas_sum}\nDistancia: {distance:.2f} en cientos de kilómetros \nDistancia Real: {distance*100:.2f} km") 
+    show_min_path_graph.path = path
+
+#Función para mostrar el grafo en el mapa del nodo agregado (paradero o punto de recarga)
+def mostrar_grafo_mapa_nodo_agregado():
+    """Muestra el mapa con el último nodo agregado y su nodo más cercano con la arista en rojo."""
+    if not hasattr(mostrar_nodo_mas_cercano, 'ultimo_nodo') or not hasattr(mostrar_nodo_mas_cercano, 'nodo_cercano'):
+        messagebox.showwarning("Advertencia", "Primero identifique el nodo más cercano al último nodo.")
+        return
+    mapa_lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12)
+    minimap = MiniMap()
+    mapa_lima.add_child(minimap)
+
+    #Obtener las coordenadas del último nodo y del nodo más cercano
+    ultimo_nodo = mostrar_nodo_mas_cercano.ultimo_nodo
+    nodo_cercano = mostrar_nodo_mas_cercano.nodo_cercano
+    ultimas_coords = G.nodes[ultimo_nodo]['pos']
+    cercanas_coords = G.nodes[nodo_cercano]['pos']
+
+    #Añadir marcadores para el último nodo y el nodo más cercano
+    folium.Marker(ultimas_coords, popup=ultimo_nodo, icon=folium.Icon(color='red')).add_to(mapa_lima)
+    folium.Marker(cercanas_coords, popup=nodo_cercano, icon=folium.Icon(color='blue')).add_to(mapa_lima)
+
+    #Calcular la distancia entre el último nodo y el nodo más cercano
+    distancia = G[ultimo_nodo][nodo_cercano]['weight']
+
+    #Dibujar una línea roja entre ellos con un tooltip que muestra la distancia
+    folium.PolyLine(
+        locations=[ultimas_coords, cercanas_coords],
+        color='red',
+        weight=5,
+        tooltip=f'Distancia: {distancia:.2f} cientos de km'
+    ).add_to(mapa_lima)
+    display_map(mapa_lima)
+
+#Función para solicitar un nuevo nodo (paradero o punto de recarga) con latitud, longitud y nombre
+def solicitar_nuevo_nodo():
+    nuevo_nodo_top = tk.Toplevel(root)
+    nuevo_nodo_top.title("Agregar nuevo nodo")
+    nuevo_nodo_top.geometry("300x250")
+
+    entry_frame = tk.Frame(nuevo_nodo_top, padx=10, pady=10)
+    entry_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+
+    #Entradas para latitud, longitud, tipo y nombre
+    tk.Label(entry_frame, text="Latitud:", font=('Helvetica', 12)).grid(row=0, column=0, sticky='w', pady=5)
+    lat_entry = tk.Entry(entry_frame, font=('Helvetica', 12), width=25)
+    lat_entry.grid(row=0, column=1, pady=5)
+
+    tk.Label(entry_frame, text="Longitud:", font=('Helvetica', 12)).grid(row=1, column=0, sticky='w', pady=5)
+    lon_entry = tk.Entry(entry_frame, font=('Helvetica', 12), width=25)
+    lon_entry.grid(row=1, column=1, pady=5)
+
+    tk.Label(entry_frame, text="Nombre:", font=('Helvetica', 12)).grid(row=2, column=0, sticky='w', pady=5)
+    nombre_entry = tk.Entry(entry_frame, font=('Helvetica', 12), width=25)
+    nombre_entry.grid(row=2, column=1, pady=5)
+
+    tk.Label(entry_frame, text="Tipo:", font=('Helvetica', 12)).grid(row=3, column=0, sticky='w', pady=5)
+    tipo_combo = ttk.Combobox(entry_frame, font=('Helvetica', 12), values=["paradero", "punto_recarga"])
+    tipo_combo.grid(row=3, column=1, pady=5)
+    tipo_combo.current(0)
+
+    add_button = tk.Button(entry_frame, text="Agregar", font=('Helvetica', 12),
+                           command=lambda: agregar_nuevo_nodo(
+                               float(lat_entry.get()), float(lon_entry.get()), tipo_combo.get(),
+                               nombre_entry.get(), nuevo_nodo_top))
+    add_button.grid(row=4, column=0, columnspan=2, pady=10)
+
+#Función para encontrar el nodo más cercano a un nodo dado en el grafo
+def encontrar_nodo_mas_cercano(nodo):
+    menor_distancia = float('inf')
+    nodo_mas_cercano = None
+    for vecino in G.neighbors(nodo):
+        distancia = G[nodo][vecino]['weight']
+        if distancia < menor_distancia:
+            menor_distancia = distancia
+            nodo_mas_cercano = vecino
+    return nodo_mas_cercano
+
+#Función para mostrar el nodo más cercano al último nodo agregado
+def mostrar_nodo_mas_cercano():
+    ultimo_nodo = list(G.nodes)[-1]  #Asume que el último nodo agregado está al final
+    nodo_cercano = encontrar_nodo_mas_cercano(ultimo_nodo)
+    mostrar_nodo_mas_cercano.ultimo_nodo = ultimo_nodo
+    mostrar_nodo_mas_cercano.nodo_cercano = nodo_cercano
+    if nodo_cercano:
+        distancia = G[ultimo_nodo][nodo_cercano]['weight']
+        label_nodo_cercano.config(
+            text=f"Ruta: {nodo_cercano} -> {ultimo_nodo}\nDistancia: {distancia:.2f} en cientos de kilómetros\nDistancia Real: {distancia*100:.2f} km"
+        )
+    else:
+        label_nodo_cercano.config(text="No hay nodos cercanos")
+
+
+##################################################################
+
+#ffalta agregar root, label_nodo_cercano, label_distancia, valor1, valor2
+
+##################################################################
+
+
+
+
+
+
+
+
+##################################################################
+
+#Función para actualizar los menús desplegables
+def actualizar_dropdowns():
+    #Obtener los nombres de todos los paraderos y puntos de recarga
+    nodos = list(paraderos_df['Nombre']) + list(puntos_recarga_df['Nombre'])
+    
+    # Actualizar los valores de los menús desplegables
+    drop1['values'] = nodos  # Actualiza los valores del primer menú desplegable
+    drop2['values'] = nodos  # Actualiza los valores del segundo menú desplegable
+    
+    # Seleccionar el primer nodo por defecto en ambos menús desplegables, si existen nodos
+    if nodos:
+        valor1.set(nodos[0])  # Selecciona el primer nodo por defecto en el primer menú desplegable
+        valor2.set(nodos[0])  # Selecciona el primer nodo por defecto en el segundo menú desplegable
+
+
+#Función para cerrar la aplicación
+def on_closing():
+    if messagebox.askokcancel("Salir", "¿Quieres salir del programa?"):
+        root.destroy() 
+
+##################################################################
+
 
 
 
