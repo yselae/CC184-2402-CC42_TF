@@ -162,15 +162,17 @@ Diseño de Interfaz de Usuario
 •	Folium se empleó para generar un mapa interactivo que muestra paraderos, puntos de recarga, y la ruta más corta destacada.
 
 ## 5.	Validación de datos y pruebas
-Entradas y Salidas:
 
-### •	Entradas:
+#### •	Entradas:
 •	Archivos Excel (paraderos.xlsx y puntos_recarga.xlsx) que contienen la información de coordenadas, nombres y datos adicionales de paraderos y puntos de recarga.
+
 •	Selección del paradero de origen y destino por parte del usuario.
 
-### •	Salidas:
+#### •	Salidas:
 •	Camino más corto entre los paraderos seleccionados.
+
 •	Distancia total del recorrido.
+
 •	Mapa interactivo que muestra la ruta en un navegador web.
 
 
