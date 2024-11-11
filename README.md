@@ -1,6 +1,5 @@
-# CC184-2402-CC42_TF
-Repositorio del Trabajo Final del curso CC184-Complejidad Algoritmica
-
+<h1 align="center">
+Repositorio del Trabajo Final del curso de Complejidad Algoritmica
 
 ## Índice
 Descripción del problema
