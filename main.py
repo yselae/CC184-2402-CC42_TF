@@ -1,4 +1,6 @@
 #Librerias
+
+import heapq as hq
 import pandas as pd
 import networkx as nx
 import math
@@ -6,19 +8,40 @@ import folium
 from folium import Marker, PolyLine
 from folium.plugins import MiniMap
 import webbrowser
-import heapq as hq
-import io, base64, os, random
 import matplotlib.pyplot as plt
+import tkinter as tk
+from tkinter import messagebox
+from folium import Marker, PolyLine
+from folium.plugins import MiniMap
+import io
+import os
+import base64
 
 from tkinter import messagebox, ttk
-import tkinter as tk
+
+G_transport = nx.Graph()
+# Function to correct decimal placement in coordinates
+def correct_decimal_placement(value):
+    value_str = str(value)
+    if '.' in value_str:
+        value_str = value_str.split('.')[0]
+    if value < 0:
+        return float(value_str[:3] + '.' + value_str[3:])
+    else:
+        return float(value_str[:2] + '.' + value_str[2:])
+
 
 #Leer los archivos XLSX
 paraderos_path = 'paraderos.xlsx'
 puntos_recarga_path = 'puntos_recarga.xlsx'
 
-paraderos_df = pd.read_excel(paraderos_path).head(30)  # Tomamos solo los primeros 25 paraderos
-puntos_recarga_df = pd.read_excel(puntos_recarga_path).head(30)
+paraderos_df = pd.read_excel(paraderos_path).head(50)
+puntos_recarga_df = pd.read_excel(puntos_recarga_path).head(50)
+paraderos_df['Latitud'] = paraderos_df['Latitud'].apply(correct_decimal_placement)
+paraderos_df['Longitud'] = paraderos_df['Longitud'].apply(correct_decimal_placement)
+puntos_recarga_df['Latitud'] = puntos_recarga_df['Latitud'].apply(correct_decimal_placement)
+puntos_recarga_df['Longitud'] = puntos_recarga_df['Longitud'].apply(correct_decimal_placement)
+
 
 def correct_decimal_placement(value):
     value_str = str(value)
@@ -28,7 +51,12 @@ def correct_decimal_placement(value):
         return float(value_str[:3] + '.' + value_str[3:])
     else:
         return float(value_str[:2] + '.' + value_str[2:])
-
+    
+# Apply the correction to the Latitud and Longitud columns in both dataframes
+paraderos_df['Latitud'] = paraderos_df['Latitud'].apply(correct_decimal_placement)
+paraderos_df['Longitud'] = paraderos_df['Longitud'].apply(correct_decimal_placement)
+puntos_recarga_df['Latitud'] = puntos_recarga_df['Latitud'].apply(correct_decimal_placement)
+puntos_recarga_df['Longitud'] = puntos_recarga_df['Longitud'].apply(correct_decimal_placement)
 
 #Crear un grafo no dirigido
 G = nx.Graph()
@@ -58,6 +86,41 @@ promedio_distancia = sum(distancias.values()) / len(distancias)
 
 #Función para mostrar el camino más corto en un mapa
 def show_map(path=None):
+    # Initialize the map centered around Lima (approximately)
+    m = folium.Map(location=[-12.0464, -77.0428], zoom_start=12)
+
+    # Add paraderos (stops) as nodes
+    for _, row in paraderos_df.iterrows():
+        folium.Marker(
+            location=[row['Latitud'], row['Longitud']],
+            popup=row['Nombre'],
+            icon=folium.Icon(color="blue", icon="info-sign")
+        ).add_to(m)
+
+    # Add puntos de recarga (charging points) as nodes
+    for _, row in puntos_recarga_df.iterrows():
+        folium.Marker(
+            location=[row['Latitud'], row['Longitud']],
+            popup=row['Nombre'],
+            icon=folium.Icon(color="green", icon="info-sign")
+        ).add_to(m)
+
+    # Add path edges to map
+    for i in range(len(path) - 1):
+        node_start = path[i]
+        node_end = path[i + 1]
+        start_coords = (graph.nodes[node_start]['Latitud'], graph.nodes[node_start]['Longitud'])
+        end_coords = (graph.nodes[node_end]['Latitud'], graph.nodes[node_end]['Longitud'])
+        
+        # Draw a line between each consecutive nodes in path
+        folium.PolyLine(locations=[start_coords, end_coords], color="red", weight=2.5, opacity=1).add_to(m)
+
+    # Save map as HTML
+    map_output_path = '/mnt/data/optimized_route_map.html'
+    m.save(map_output_path)
+
+    # Open the map in the default web browser
+    webbrowser.open(map_output_path)
     mapa_lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12) #Mapa Centro de Lima
     minimap = MiniMap()
     mapa_lima.add_child(minimap)
@@ -155,7 +218,7 @@ for i, row1 in paraderos_df.iterrows():
 promedio_distancia = sum(distancias.values()) / len(distancias)
 
 #Función para mostrar el mapa base
-def show_map():
+def show_map(path=None):
     mapa_Lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12) 
     minimap = MiniMap()  
     mapa_Lima.add_child(minimap)  
@@ -173,6 +236,7 @@ def display_map(map_object):
 
 #Función para mostrar el grafo de paraderos y puntos de recarga
 def show_transport_graph():
+    G_transport = nx.Graph()
     G_transport = nx.Graph() 
     for _, row in paraderos_df.iterrows():
         G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='paradero')
@@ -181,7 +245,13 @@ def show_transport_graph():
         G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='punto_recarga')
 
     #Añadir aristas entre paraderos con las distancias como peso
-    for (inicio, fin), distancia in distancias.items():
+# Create a complete graph by connecting every node with every other node
+for node1 in G_transport.nodes:
+    for node2 in G_transport.nodes:
+        if node1 != node2:
+            distancia = euclidean_distance(G_transport.nodes[node1]['pos'][0], G_transport.nodes[node1]['pos'][1],
+                                      G_transport.nodes[node2]['pos'][0], G_transport.nodes[node2]['pos'][1])
+            G_transport.add_edge(node1, node2, weight=distancia)
         G_transport.add_edge(inicio, fin, weight=distancia)
 
     #Obtener posiciones para todos los nodos del grafo
@@ -239,7 +309,13 @@ def show_graph_map():
             print(f"{nodo}: {error}")
 
     #Añadir aristas entre paraderos
-    for (inicio, fin), distancia in distancias.items():
+# Create a complete graph by connecting every node with every other node
+for node1 in G_transport.nodes:
+    for node2 in G_transport.nodes:
+        if node1 != node2:
+            distancia = euclidean_distance(G_transport.nodes[node1]['pos'][0], G_transport.nodes[node1]['pos'][1],
+                                      G_transport.nodes[node2]['pos'][0], G_transport.nodes[node2]['pos'][1])
+            G_transport.add_edge(node1, node2, weight=distancia)
         pos_inicio = (G.nodes[inicio]['pos'][1], G.nodes[inicio]['pos'][0])  #Obtener posición de inicio
         pos_fin = (G.nodes[fin]['pos'][1], G.nodes[fin]['pos'][0])  #Obtener posición de fin
         PolyLine(locations=[pos_inicio, pos_fin], color='blue', weight=2, tooltip=f'Distancia: {distancia:.2f} km').add_to(mapa_lima)
@@ -502,3 +578,38 @@ def run_app():
 
 # Ejecutar la aplicación
 run_app()
+# Función para mostrar el grafo de paraderos y puntos de recarga
+def show_transport_graph():
+    G_transport = nx.Graph()
+
+    # Agregar nodos para paraderos
+    for _, row in paraderos_df.iterrows():
+        G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='paradero')
+
+    # Agregar nodos para puntos de recarga
+    for _, row in puntos_recarga_df.iterrows():
+        G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='punto_recarga')
+
+    # Añadir aristas entre paraderos con las distancias como peso
+# Create a complete graph by connecting every node with every other node
+for node1 in G_transport.nodes:
+    for node2 in G_transport.nodes:
+        if node1 != node2:
+            distancia = euclidean_distance(G_transport.nodes[node1]['pos'][0], G_transport.nodes[node1]['pos'][1],
+                                      G_transport.nodes[node2]['pos'][0], G_transport.nodes[node2]['pos'][1])
+            G_transport.add_edge(node1, node2, weight=distancia)
+        G_transport.add_edge(inicio, fin, weight=distancia)
+
+    # Obtener posiciones para todos los nodos del grafo
+    pos = {node: (data['pos'][0], data['pos'][1]) for node, data in G_transport.nodes(data=True)}
+
+    # Configurar el gráfico
+    plt.figure(figsize=(14, 12))
+    nx.draw(G_transport, pos, with_labels=True, node_color='skyblue', edge_color='gray', node_size=500, font_size=8)
+
+    # Añadir etiquetas a las aristas con las distancias
+    edge_labels = nx.get_edge_attributes(G_transport, 'weight')
+    nx.draw_networkx_edge_labels(G_transport, pos, edge_labels=edge_labels)
+
+    # Mostrar el gráfico
+    plt.show()
