@@ -176,15 +176,18 @@ Diseño de Interfaz de Usuario
 •	Mapa interactivo que muestra la ruta en un navegador web.
 
 
-### Conclusión
+## 6.  Conclusión
 
-El aplicativo optimizará la experiencia de los usuarios del transporte público, permitiéndoles ahorrar tiempo en sus trayectos y facilitar el acceso a puntos de venta y recarga. Esto mejorará la calidad de vida de los limeños al reducir el tiempo que pasan en transporte y facilitar su acceso a recursos importantes, como la recarga de tarjetas.
+La implementación del algoritmo de Dijkstra demostró ser una solución eficiente para el cálculo de rutas óptimas en sistemas de transporte urbano. Al modelar el problema con un grafo que incluye paraderos y puntos de recarga, se logró obtener resultados rápidos y precisos, incluso con un número considerable de nodos y conexiones. Esta elección de algoritmo permitió optimizar tanto la rapidez del cálculo como el uso de recursos, haciéndolo adecuado para aplicaciones en ciudades de tamaño medio. Sin embargo, en sistemas más grandes o con una mayor cantidad de datos en tiempo real, sería beneficioso explorar otras opciones que podrían ofrecer mejoras en eficiencia.
 
-En resumen, nuestra propuesta es desarrollar un aplicativo en Python basado en el Algoritmo de Dijkstra, enfocado en optimizar las rutas de transporte en Lima, lo que permitirá a los usuarios realizar sus viajes de forma más eficiente.
+El uso de Folium para la visualización geográfica del sistema resultó ser una herramienta que nos ayudó bastante para mejorar la experiencia del usuario. La capacidad de mostrar mapas interactivos, donde se resaltan tanto los paraderos como las rutas óptimas, facilita la comprensión y el análisis de los resultados obtenidos. Esto no solo mejora la interacción del usuario con el sistema, sino que también permite una presentación visual clara y atractiva, lo que es esencial para aplicaciones prácticas y demostraciones.
+
+Finalmente, el diseño modular del aplicativo garantiza su facilidad de mantenimiento y escalabilidad. El sistema está preparado para incorporar futuras mejoras, como la integración de datos en tiempo real mediante APIs externas para información de tráfico o tiempos de espera. Además, se podría extender el análisis para incluir rutas ecológicas, optimizando no solo el tiempo y la distancia, sino también el impacto ambiental de los recorridos. Esta flexibilidad sugiere que la aplicación tiene un alto potencial para adaptarse a necesidades emergentes, lo que la convierte en una solución versátil para optimizar sistemas de transporte en diversas ciudades.
 
 
 
-## 4. Referencias Bibliográficas
+
+## 7. Referencias Bibliográficas
 
 Conocer puntos de venta y recarga de tarjetas del Metropolitano y Corredores complementarios. (2021, 25 octubre). Servicio - Autoridad de Transporte Urbano Para Lima y Callao - Plataforma del Estado Peruano. https://www.gob.pe/15049-conocer-puntos-de-venta-y-recarga-de-tarjetas-del-metropolitano-y-corredores-complementarios 
 
