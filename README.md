@@ -164,14 +164,14 @@ Diseño de Interfaz de Usuario
 ## 5.	Validación de datos y pruebas
 Entradas y Salidas:
 
-•	Entradas:
-o	Archivos Excel (paraderos.xlsx y puntos_recarga.xlsx) que contienen la información de coordenadas, nombres y datos adicionales de paraderos y puntos de recarga.
-o	Selección del paradero de origen y destino por parte del usuario.
+### •	Entradas:
+•	Archivos Excel (paraderos.xlsx y puntos_recarga.xlsx) que contienen la información de coordenadas, nombres y datos adicionales de paraderos y puntos de recarga.
+•	Selección del paradero de origen y destino por parte del usuario.
 
-•	Salidas:
-o	Camino más corto entre los paraderos seleccionados.
-o	Distancia total del recorrido.
-o	Mapa interactivo que muestra la ruta en un navegador web.
+### •	Salidas:
+•	Camino más corto entre los paraderos seleccionados.
+•	Distancia total del recorrido.
+•	Mapa interactivo que muestra la ruta en un navegador web.
 
 
 ### Conclusión
