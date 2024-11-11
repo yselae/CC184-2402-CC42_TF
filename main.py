@@ -8,6 +8,7 @@ from folium.plugins import MiniMap
 import webbrowser
 import heapq as hq
 import io, base64, os
+import matplotlib.pyplot as plt
 
 from tkinter import messagebox, ttk
 import tkinter as tk
@@ -161,6 +162,79 @@ def display_map(map_object):
         file.write(html)  #Escribe el HTML en un archivo
     webbrowser.open('file://' + os.path.realpath("map.html"))  #Abre el archivo en el navegador
 
+#Función para mostrar el grafo de paraderos y puntos de recarga
+def show_transport_graph():
+    G_transport = nx.Graph() 
+    for _, row in paraderos_df.iterrows():
+        G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='paradero')
+    
+    for _, row in puntos_recarga_df.iterrows():
+        G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='punto_recarga')
+
+    #Añadir aristas entre paraderos con las distancias como peso
+    for (inicio, fin), distancia in distancias.items():
+        G_transport.add_edge(inicio, fin, weight=distancia)
+
+    #Obtener posiciones para todos los nodos del grafo
+    pos = {node: (data['pos'][1], data['pos'][0]) for node, data in G_transport.nodes(data=True)}
+    
+    #Configurar el gráfico
+    plt.figure(figsize=(14, 12))
+    nx.draw(G_transport, pos, with_labels=True, node_color='skyblue', edge_color='gray', node_size=500, font_size=8)
+    
+    #Añadir etiquetas a las aristas con las distancias
+    edge_labels = {edge: f'{data["weight"]:.2f}' for edge, data in G_transport.edges.items()}
+    nx.draw_networkx_edge_labels(G_transport, pos, edge_labels=edge_labels, font_color='red', font_size=8)
+    plt.title('Grafo de Paraderos y Puntos de Recarga')
+    plt.show()
+
+#Función para mostrar el grafo de paraderos y puntos de recarga en un mapa
+def show_graph_map():
+    mapa_lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12) 
+    minimap = MiniMap() 
+    mapa_lima.add_child(minimap)  
+    
+    #Conjunto para rastrear nodos únicos ya agregados
+    nodos_agregados = set()
+    nodos_no_agregados = []
+    
+    #Añadir marcadores para paraderos
+    for _, row in paraderos_df.iterrows():
+        pos = (row['Latitud'], row['Longitud'])
+        if pos not in nodos_agregados:
+            try:
+                Marker(pos, popup=row['Nombre'], icon=folium.Icon(color='blue')).add_to(mapa_lima)
+                nodos_agregados.add(pos)
+            except Exception as e:
+                nodos_no_agregados.append((row['Nombre'], str(e)))
+        else:
+            nodos_no_agregados.append((row['Nombre'], "Coordenadas duplicadas, misma latitud y longitud"))
+
+    #Añadir marcadores para puntos de recarga
+    for _, row in puntos_recarga_df.iterrows():
+        pos = (row['Latitud'], row['Longitud'])
+        if pos not in nodos_agregados:
+            try:
+                Marker(pos, popup=row['Nombre'], icon=folium.Icon(color='green')).add_to(mapa_lima)
+                nodos_agregados.add(pos)
+            except Exception as e:
+                nodos_no_agregados.append((row['Nombre'], str(e)))
+        else:
+            nodos_no_agregados.append((row['Nombre'], "Coordenadas duplicadas, misma latitud y longitud"))
+    
+    #Mostrar nodos agregados y errores si existen
+    print(f"Nodos agregados: {len(nodos_agregados)}")
+    if nodos_no_agregados:
+        print("Errores al agregar nodos:")
+        for nodo, error in nodos_no_agregados:
+            print(f"{nodo}: {error}")
+
+    #Añadir aristas entre paraderos
+    for (inicio, fin), distancia in distancias.items():
+        pos_inicio = (G.nodes[inicio]['pos'][1], G.nodes[inicio]['pos'][0])  #Obtener posición de inicio
+        pos_fin = (G.nodes[fin]['pos'][1], G.nodes[fin]['pos'][0])  #Obtener posición de fin
+        PolyLine(locations=[pos_inicio, pos_fin], color='blue', weight=2, tooltip=f'Distancia: {distancia:.2f} km').add_to(mapa_lima)
+    display_map(mapa_lima)
 
 
 
