@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 
 from tkinter import messagebox, ttk
 import tkinter as tk
-from tkinter import *
 
 #Leer los archivos XLSX
 paraderos_path = 'paraderos.xlsx'
@@ -358,7 +357,7 @@ def mostrar_grafo_mapa_nodo_agregado():
 
 #Función para solicitar un nuevo nodo (paradero o punto de recarga) con latitud, longitud y nombre
 def solicitar_nuevo_nodo():
-    nuevo_nodo_top = tk.Toplevel(root)
+    nuevo_nodo_top = tk.Toplevel(run_app)
     nuevo_nodo_top.title("Agregar nuevo nodo")
     nuevo_nodo_top.geometry("300x250")
 
@@ -414,22 +413,6 @@ def mostrar_nodo_mas_cercano():
     else:
         label_nodo_cercano.config(text="No hay nodos cercanos")
 
-
-##################################################################
-
-#ffalta agregar root, label_nodo_cercano, label_distancia, valor1, valor2
-
-##################################################################
-
-
-
-
-
-
-
-
-##################################################################
-
 #Función para actualizar los menús desplegables
 def actualizar_dropdowns():
     #Obtener los nombres de todos los paraderos y puntos de recarga
@@ -443,21 +426,6 @@ def actualizar_dropdowns():
     if nodos:
         valor1.set(nodos[0])  # Selecciona el primer nodo por defecto en el primer menú desplegable
         valor2.set(nodos[0])  # Selecciona el primer nodo por defecto en el segundo menú desplegable
-
-
-#Función para cerrar la aplicación
-def on_closing():
-    if messagebox.askokcancel("Salir", "¿Quieres salir del programa?"):
-        root.destroy() 
-
-##################################################################
-
-
-
-
-
-
-
 
 # Interfaz gráfica con tkinter
 def run_app():
