@@ -18,8 +18,18 @@ from tkinter import *
 paraderos_path = 'paraderos.xlsx'
 puntos_recarga_path = 'puntos_recarga.xlsx'
 
-paraderos_df = pd.read_excel(paraderos_path)
-puntos_recarga_df = pd.read_excel(puntos_recarga_path)
+paraderos_df = pd.read_excel(paraderos_path).head(30)  # Tomamos solo los primeros 25 paraderos
+puntos_recarga_df = pd.read_excel(puntos_recarga_path).head(30)
+
+def correct_decimal_placement(value):
+    value_str = str(value)
+    if '.' in value_str:
+        value_str = value_str.split('.')[0]  
+    if value < 0:
+        return float(value_str[:3] + '.' + value_str[3:])
+    else:
+        return float(value_str[:2] + '.' + value_str[2:])
+
 
 #Crear un grafo no dirigido
 G = nx.Graph()
