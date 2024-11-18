@@ -17,7 +17,6 @@ import io
 import os
 import base64
 
-G_transport = nx.Graph()
 # Function to correct decimal placement in coordinates
 def correct_decimal_placement(value):
     value_str = str(value)
@@ -27,7 +26,6 @@ def correct_decimal_placement(value):
         return float(value_str[:3] + '.' + value_str[3:])
     else:
         return float(value_str[:2] + '.' + value_str[2:])
-
 
 #Leer los archivos XLSX
 paraderos_path = 'paraderos.xlsx'
@@ -40,23 +38,9 @@ paraderos_df['Longitud'] = paraderos_df['Longitud'].apply(correct_decimal_placem
 puntos_recarga_df['Latitud'] = puntos_recarga_df['Latitud'].apply(correct_decimal_placement)
 puntos_recarga_df['Longitud'] = puntos_recarga_df['Longitud'].apply(correct_decimal_placement)
 
-def correct_decimal_placement(value):
-    value_str = str(value)
-    if '.' in value_str:
-        value_str = value_str.split('.')[0]  
-    if value < 0:
-        return float(value_str[:3] + '.' + value_str[3:])
-    else:
-        return float(value_str[:2] + '.' + value_str[2:])
-    
-# Apply the correction to the Latitud and Longitud columns in both dataframes
-paraderos_df['Latitud'] = paraderos_df['Latitud'].apply(correct_decimal_placement)
-paraderos_df['Longitud'] = paraderos_df['Longitud'].apply(correct_decimal_placement)
-puntos_recarga_df['Latitud'] = puntos_recarga_df['Latitud'].apply(correct_decimal_placement)
-puntos_recarga_df['Longitud'] = puntos_recarga_df['Longitud'].apply(correct_decimal_placement)
-
 #Crear un grafo no dirigido
 G = nx.Graph()
+G_transport = nx.Graph()
 
 # Función para calcular la distancia euclidiana en km entre dos puntos geográficos
 def euclidean_distance(lat1, lon1, lat2, lon2):
@@ -65,6 +49,7 @@ def euclidean_distance(lat1, lon1, lat2, lon2):
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    a = min(1, max(0, a))  # Asegurar que 'a' esté entre 0 y 1
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
@@ -88,28 +73,56 @@ def process_data(file_path, lat_col, lon_col, name_col=None, corredor_col=None):
 paraderos = process_data("paraderos.xlsx", "Latitud", "Longitud", "Nombre", "Corredor")
 puntos_recarga = process_data("puntos_recarga.xlsx", "Latitud", "Longitud", "Nombre")
 
-#Calcular la distancia euclidiana entre dos puntos
-def euclidean_distance(x1, y1, x2, y2):
-    return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-
-#Agregar nodos (paraderos) al grafo
+# Agregar nodos y aristas al grafo
 for _, row in paraderos_df.iterrows():
     G.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='paradero')
-    
-#Añadir nodos de puntos de recarga
+
 for _, row in puntos_recarga_df.iterrows():
-    G.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='punto_recarga', direccion=row['Direccion'], horario=row['Horario'])
+    G.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='punto_recarga')
 
-#Agregar aristas entre los paraderos usando la distancia como peso
-for i, row1 in paraderos_df.iterrows():
-    for j, row2 in paraderos_df.iterrows():
-        if i < j:
-            distancia = euclidean_distance(row1['X'], row1['Y'], row2['X'], row2['Y'])
-            G.add_edge(row1['Nombre'], row2['Nombre'], weight=distancia)  
+for node1, data1 in G.nodes(data=True):
+    for node2, data2 in G.nodes(data=True):
+        if node1 != node2:
+            dist = euclidean_distance(data1['pos'][0], data1['pos'][1], data2['pos'][0], data2['pos'][1])
+            G.add_edge(node1, node2, weight=dist)
 
-#Calcular la distancia promedio de las aristas
-distancias = {edge: data['weight'] for edge, data in G.edges.items()}
-promedio_distancia = sum(distancias.values()) / len(distancias)
+# Algoritmo de Dijkstra
+def dijkstra(start, end):
+    if start not in G.nodes or end not in G.nodes:
+        messagebox.showerror("Error", "Uno o ambos nodos no existen en el grafo.")
+        return None, None
+
+    distances = {node: float('inf') for node in G.nodes}
+    distances[start] = 0
+    previous_nodes = {node: None for node in G.nodes}
+    priority_queue = [(0, start)]
+
+    while priority_queue:
+        current_distance, current_node = hq.heappop(priority_queue)
+        if current_node == end:
+            break
+
+        for neighbor in G.neighbors(current_node):
+            edge_weight = G[current_node][neighbor]['weight']
+            new_distance = current_distance + edge_weight
+
+            if new_distance < distances[neighbor]:
+                distances[neighbor] = new_distance
+                previous_nodes[neighbor] = current_node
+                hq.heappush(priority_queue, (new_distance, neighbor))
+
+    # Reconstruir el camino
+    path = []
+    current = end
+    while current is not None:
+        path.insert(0, current)
+        current = previous_nodes[current]
+
+    if distances[end] == float('inf'):
+        messagebox.showinfo("Sin Ruta", "No hay una ruta disponible entre los nodos seleccionados.")
+        return None, None
+
+    return path, distances[end]
 
 #Función para mostrar el camino más corto en un mapa
 def show_map(path=None):
@@ -192,45 +205,6 @@ def show_map(path=None):
         
     #Muestra el mapa
     display_map(mapa_lima)
-
-#Algoritmo de Dijkstra para encontrar el camino más corto  
-def dijkstra(start, end):
-    #Inicializar costos y predecesores para cada nodo
-    costs = {node: float('inf') for node in G.nodes}
-    predecessors = {node: None for node in G.nodes}
-    costs[start] = 0  
-    queue = [(0, start)]  #Cola de prioridad para los nodos por visitar
-
-    while queue:
-        current_cost, current_node = hq.heappop(queue)  #Extraer el nodo con el menor costo
-        if current_node == end:
-            break  
-
-        for neighbor in G.neighbors(current_node):
-            #Obtener el peso de la arista entre current_node y neighbor
-            distance = G[current_node][neighbor].get('weight', float('inf'))
-            cost = current_cost + distance  #Calcula el nuevo costo
-
-            #Actualizar costo y predecesor si se encontró un camino más corto
-            if cost < costs[neighbor]:
-                costs[neighbor] = cost
-                predecessors[neighbor] = current_node
-                hq.heappush(queue, (cost, neighbor))  #Añadir a la cola de prioridad
-
-    #Construir el camino de salida a partir de los predecesores
-    path = []
-    step = end
-    while step is not None:
-        path.append(step)
-        step = predecessors[step]
-    path.reverse()  #Invertir el camino para ir del inicio al fin
-
-    #Mostrar el mapa con la ruta resaltada
-    if costs[end] == float('inf'):
-        return None, None
-    else:
-        show_map(path)  #Muestra el mapa con la ruta
-        return path, costs[end]  #Retorna el camino y la distancia total
 
 #Crear un diccionario para almacenar las distancias entre los paraderos y puntos de recarga conectados
 distancias = {}
@@ -341,13 +315,6 @@ for node1 in G_transport.nodes:
         PolyLine(locations=[pos_inicio, pos_fin], color='blue', weight=2, tooltip=f'Distancia: {distancia:.2f} km').add_to(mapa_lima)
     display_map(mapa_lima)
 
-
-###################################################################agregar dsp
-#Función para actualizar la selección de paradero
-def seleccion_paradero(valor, label):
-    label.config(text=f"Paradero seleccionado: {valor.get()}")  #Actualiza la etiqueta con el paradero seleccionado
-##################################################################
-
 #Función para mostrar el camino mínimo en el grafo del mapa
 def show_min_path_graph():
     #Verifica si la variable 'path' está definida y contiene elementos
@@ -357,67 +324,31 @@ def show_min_path_graph():
     #Llama a la función para mostrar el mapa con el camino mínimo
     show_graph_map(min_path=show_min_path_graph.path)
 
-#Función para agregar un nuevo nodo (paradero o punto de recarga)
-def agregar_nuevo_nodo(lat, lon, tipo, nombre, top_level_window):
-    nuevo_nodo = nombre  #Nombre para el nuevo nodo
-    if tipo == "paradero":
-        paraderos_df.loc[len(paraderos_df)] = [nuevo_nodo, lat, lon]  #Añade el nuevo paradero al DataFrame de paraderos
-    elif tipo == "punto_recarga":
-        puntos_recarga_df.loc[len(puntos_recarga_df)] = [nuevo_nodo, lat, lon, "Direccion", "Horario"]  #Añade el nuevo punto de recarga al DataFrame de puntos de recarga
+# Función para mostrar el mapa con una ruta
+def mostrar_ruta(path):
+    mapa = folium.Map(location=[-12.0464, -77.0428], zoom_start=12)
+    for node in path:
+        data = G.nodes[node]
+        Marker(data['pos'], popup=node, icon=folium.Icon(color='blue')).add_to(mapa)
 
-    #Actualizar grafo
-    G.add_node(nuevo_nodo, pos=(lat, lon), tipo=tipo)
-    
-    #Selecciona nodos aleatorios para conectar el nuevo nodo
-    nodos_existentes = list(G.nodes)
-    random.shuffle(nodos_existentes)  #Mezcla los nodos existentes
-    num_conexiones = random.randint(4, 9)  #Selecciona un número aleatorio de conexiones
-    nodos_seleccionados = nodos_existentes[:num_conexiones]
-    
-    for nodo in nodos_seleccionados:
-        if nodo != nuevo_nodo:
-            #Calcular distancia euclidiana
-            nodo_pos = G.nodes[nodo]['pos']
-            distancia = euclidean_distance(lat, lon, nodo_pos[0], nodo_pos[1])
-            G.add_edge(nuevo_nodo, nodo, weight=distancia)  #Añade la arista con el peso de la distancia
-    
-    actualizar_dropdowns()  #Actualiza los menús desplegables
-    top_level_window.destroy()  #Cierra la ventana de agregar nodo
-    messagebox.showinfo("Confirmación", "Nodo agregado exitosamente")  #Muestra un mensaje de confirmación
+    for i in range(len(path) - 1):
+        start, end = path[i], path[i + 1]
+        start_coords = G.nodes[start]['pos']
+        end_coords = G.nodes[end]['pos']
+        PolyLine([start_coords, end_coords], color='red').add_to(mapa)
+
+    mapa.save("ruta_optima.html")
+    webbrowser.open("ruta_optima.html")
 
 # Función para calcular la distancia mínima entre dos nodos (paraderos o puntos de recarga)
-def calcular_minima_distancia():
-    global path
-    start = valor1.get()  #Obtiene el nodo inicial del menú desplegable
-    end = valor2.get()  #Obtiene el nodo final del menú desplegable
-    
-    #Verifica que los nodos seleccionados no sean los mismos
+def calcular_minima_distancia(start, end):
     if start == end:
-        messagebox.showinfo("Error", "Selecciona dos nodos diferentes") 
+        messagebox.showinfo("Error", "Seleccione nodos diferentes.")
         return
-    
-    #Calcula el camino y la distancia mínima usando Dijkstra
     path, distance = dijkstra(start, end)
-    
-    #Verifica si hay una ruta disponible
-    if path is None:
-        label_distancia.config(text="No hay ruta disponible entre los nodos seleccionados")
-    else:
-        arista_descriptions = []
-        
-        #Calcula la descripción de cada arista en el camino
-        for i in range(len(path) - 1):
-            start_node = path[i]
-            end_node = path[i + 1]
-            arista = f"{G[start_node][end_node]['weight']:.2f}"
-            arista_descriptions.append(arista)
-        
-        #Construye la descripción de la suma de aristas y distancia
-        aristas_sum = " + ".join(arista_descriptions)
-        label_distancia.config(
-            #Muestra la distancia mínima
-            text=f"Ruta: {' -> '.join(path)}\nSuma de las aristas: {aristas_sum}\nDistancia: {distance:.2f} en cientos de kilómetros \nDistancia Real: {distance*100:.2f} km") 
-    show_min_path_graph.path = path
+    if path:
+        mostrar_ruta(path)
+        messagebox.showinfo("Ruta", f"Ruta: {' -> '.join(path)}\nDistancia total: {distance:.2f} km")
 
 #Función para mostrar el grafo en el mapa del nodo agregado (paradero o punto de recarga)
 def mostrar_grafo_mapa_nodo_agregado():
@@ -451,40 +382,8 @@ def mostrar_grafo_mapa_nodo_agregado():
     ).add_to(mapa_lima)
     display_map(mapa_lima)
 
-#Función para solicitar un nuevo nodo (paradero o punto de recarga) con latitud, longitud y nombre
-def solicitar_nuevo_nodo(root):
-    nuevo_nodo_top = tk.Toplevel(root)
-    nuevo_nodo_top.title("Agregar nuevo nodo")
-    nuevo_nodo_top.geometry("300x250")
-
-    entry_frame = tk.Frame(nuevo_nodo_top, padx=10, pady=10)
-    entry_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-
-    # Entradas para latitud, longitud, tipo y nombre
-    tk.Label(entry_frame, text="Latitud:", font=('Helvetica', 12)).grid(row=0, column=0, sticky='w', pady=5)
-    lat_entry = tk.Entry(entry_frame, font=('Helvetica', 12), width=25)
-    lat_entry.grid(row=0, column=1, pady=5)
-
-    tk.Label(entry_frame, text="Longitud:", font=('Helvetica', 12)).grid(row=1, column=0, sticky='w', pady=5)
-    lon_entry = tk.Entry(entry_frame, font=('Helvetica', 12), width=25)
-    lon_entry.grid(row=1, column=1, pady=5)
-
-    tk.Label(entry_frame, text="Nombre:", font=('Helvetica', 12)).grid(row=2, column=0, sticky='w', pady=5)
-    nombre_entry = tk.Entry(entry_frame, font=('Helvetica', 12), width=25)
-    nombre_entry.grid(row=2, column=1, pady=5)
-
-    tk.Label(entry_frame, text="Tipo:", font=('Helvetica', 12)).grid(row=3, column=0, sticky='w', pady=5)
-    tipo_combo = ttk.Combobox(entry_frame, font=('Helvetica', 12), values=["paradero", "punto_recarga"])
-    tipo_combo.grid(row=3, column=1, pady=5)
-    tipo_combo.current(0)
-
-    add_button = tk.Button(entry_frame, text="Agregar", font=('Helvetica', 12),
-                           command=lambda: agregar_nuevo_nodo(
-                               lat_entry.get(), lon_entry.get(), tipo_combo.get(),
-                               nombre_entry.get(), nuevo_nodo_top))
-    add_button.grid(row=4, column=0, columnspan=2, pady=10)
-
-def agregar_nuevo_nodo(latitud, longitud, tipo, nombre, window):
+# Función para agregar un nuevo nodo
+def agregar_nuevo_nodo(latitud, longitud, tipo, nombre):
     try:
         latitud = float(latitud)
         longitud = float(longitud)
@@ -492,15 +391,31 @@ def agregar_nuevo_nodo(latitud, longitud, tipo, nombre, window):
         if not nombre.strip():
             raise ValueError("El nombre no puede estar vacío.")
 
-        # Añade el nodo al grafo
+        if nombre in G.nodes:
+            raise ValueError(f"El nodo '{nombre}' ya existe en el grafo.")
+
+        # Agregar el nodo al grafo
         G.add_node(nombre, pos=(latitud, longitud), tipo=tipo)
 
-        # Muestra un mensaje de éxito y cierra la ventana
-        messagebox.showinfo("Éxito", f"Nodo '{nombre}' agregado exitosamente como '{tipo}'.")
-        window.destroy()  # Cierra la ventana de entrada
+        # Conectar el nodo a los más cercanos
+        for nodo in G.nodes:
+            if nodo != nombre:
+                distancia = euclidean_distance(latitud, longitud, G.nodes[nodo]['pos'][0], G.nodes[nodo]['pos'][1])
+                G.add_edge(nombre, nodo, weight=distancia)
 
+        # Agregar el nodo al archivo Excel
+        if tipo == "paradero":
+            global paraderos_df
+            nuevo_paradero = pd.DataFrame([[nombre, latitud, longitud]], columns=paraderos_df.columns)
+            paraderos_df = pd.concat([paraderos_df, nuevo_paradero], ignore_index=True)
+            paraderos_df.to_excel(paraderos_path, index=False)
+
+        messagebox.showinfo("Éxito", f"Nodo '{nombre}' agregado exitosamente.")
     except ValueError as e:
         messagebox.showerror("Error", f"Datos inválidos: {e}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Error inesperado: {e}")
+
 
 #Función para encontrar el nodo más cercano a un nodo dado en el grafo
 def encontrar_nodo_mas_cercano(nodo):
@@ -708,23 +623,22 @@ def iniciar_interfaz():
 
     # Entradas para coordenadas X y Y en una misma línea
     ttk.Label(ventana, text="X:", foreground='white', background='grey').place(x=480, y=230)
-    x_entry = tk.Entry(ventana)
-    x_entry.place(x=510, y=230)
+    lat_entry = tk.Entry(ventana)
+    lat_entry.place(x=510, y=230)
 
     ttk.Label(ventana, text="Y:", foreground='white', background='grey').place(x=670, y=230)
-    y_entry = tk.Entry(ventana)
-    y_entry.place(x=700, y=230)
+    lon_entry = tk.Entry(ventana)
+    lon_entry.place(x=700, y=230)
 
     # Botón para agregar un nuevo punto
-    add_button = tk.Button(
+    tk.Button(
         ventana,
         text="AGREGAR",
         font=("Helvetica", 10),
         bg="#6a994e",
         fg="white",
-        command=lambda: solicitar_nuevo_nodo(name_entry.get(), x_entry.get(), y_entry.get())
-        )
-    add_button.place(x=565, y=270, width=160, height=45)
+        command=lambda: agregar_nuevo_nodo(lat_entry.get(), lon_entry.get(), "paradero", name_entry.get())
+        ).place(x=565, y=270, width=160, height=45)
 
     # Botones adicionales para otras funcionalidades
     button_frame = tk.Frame(ventana, bg='grey')
