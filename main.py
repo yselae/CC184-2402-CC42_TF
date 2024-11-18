@@ -172,8 +172,9 @@ def calcular_minima_distancia(start, end):
         messagebox.showinfo("Ruta", f"Ruta: {' -> '.join(path)}\nDistancia total: {distance:.2f} km")
 
 # Función para agregar un nuevo nodo
-def agregar_nuevo_nodo(latitud, longitud, tipo, nombre):
+def agregar_nuevo_nodo(latitud, longitud, tipo, nombre, corredor=""):
     try:
+        # Validar y convertir las entradas
         latitud = float(latitud)
         longitud = float(longitud)
 
@@ -183,27 +184,31 @@ def agregar_nuevo_nodo(latitud, longitud, tipo, nombre):
         if nombre in G.nodes:
             raise ValueError(f"El nodo '{nombre}' ya existe en el grafo.")
 
-        # Agregar el nodo al grafo
+        # Agregar el nuevo nodo al grafo
         G.add_node(nombre, pos=(latitud, longitud), tipo=tipo)
 
-        # Conectar el nodo a los más cercanos
+        # Conectar el nuevo nodo con los existentes
         for nodo in G.nodes:
             if nodo != nombre:
                 distancia = euclidean_distance(latitud, longitud, G.nodes[nodo]['pos'][0], G.nodes[nodo]['pos'][1])
                 G.add_edge(nombre, nodo, weight=distancia)
 
-        # Agregar el nodo al archivo Excel
-        if tipo == "paradero":
-            global paraderos_df
-            nuevo_paradero = pd.DataFrame([[nombre, latitud, longitud]], columns=paraderos_df.columns)
-            paraderos_df = pd.concat([paraderos_df, nuevo_paradero], ignore_index=True)
-            paraderos_df.to_excel(paraderos_path, index=False)
+        # Asegurarse de que las columnas coincidan con el DataFrame
+        global paraderos_df
+        expected_columns = ["X", "Y", "Nombre", "Latitud", "Longitud", "Corredor"]
+        nuevo_paradero = pd.DataFrame([["", "", nombre, latitud, longitud, corredor]], columns=expected_columns)
 
+        # Agregar al DataFrame y sobrescribir el archivo
+        paraderos_df = pd.concat([paraderos_df, nuevo_paradero], ignore_index=True)
+        paraderos_df.to_excel(paraderos_path, index=False)
+
+        # Confirmar éxito
         messagebox.showinfo("Éxito", f"Nodo '{nombre}' agregado exitosamente.")
+
     except ValueError as e:
-        messagebox.showerror("Error", f"Datos inválidos: {e}")
+        messagebox.showerror("Error de Validación", f"Datos inválidos: {e}")
     except Exception as e:
-        messagebox.showerror("Error", f"Error inesperado: {e}")
+        messagebox.showerror("Error Inesperado", f"Se produjo un error: {e}")
 
 # Función para mostrar mapa vacío
 def mostrar_mapa():
@@ -339,7 +344,7 @@ def iniciar_interfaz():
     ventana.geometry("900x650")
 
     # Fondo de la interfaz
-    background_image = Image.open("fondo1.png") 
+    background_image = Image.open("fondo.png") 
     background_image = background_image.resize((900, 650), Image.Resampling.LANCZOS)
     bg_image = ImageTk.PhotoImage(background_image)
     bg_label = tk.Label(ventana, image=bg_image)
