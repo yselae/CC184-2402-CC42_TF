@@ -13,9 +13,6 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 from tkinter import messagebox, ttk
-import io
-import os
-import base64
 
 # Function to correct decimal placement in coordinates
 def correct_decimal_placement(value):
@@ -207,18 +204,6 @@ def agregar_nuevo_nodo(latitud, longitud, tipo, nombre):
         messagebox.showerror("Error", f"Datos inválidos: {e}")
     except Exception as e:
         messagebox.showerror("Error", f"Error inesperado: {e}")
-
-
-#Función para encontrar el nodo más cercano a un nodo dado en el grafo
-def encontrar_nodo_mas_cercano(nodo):
-    menor_distancia = float('inf')
-    nodo_mas_cercano = None
-    for vecino in G.neighbors(nodo):
-        distancia = G[nodo][vecino]['weight']
-        if distancia < menor_distancia:
-            menor_distancia = distancia
-            nodo_mas_cercano = vecino
-    return nodo_mas_cercano
 
 # Función para mostrar mapa vacío
 def mostrar_mapa():
