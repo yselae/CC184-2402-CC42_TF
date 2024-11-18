@@ -40,7 +40,6 @@ puntos_recarga_df['Longitud'] = puntos_recarga_df['Longitud'].apply(correct_deci
 
 #Crear un grafo no dirigido
 G = nx.Graph()
-G_transport = nx.Graph()
 
 # Función para calcular la distancia euclidiana en km entre dos puntos geográficos
 def euclidean_distance(lat1, lon1, lat2, lon2):
@@ -124,219 +123,44 @@ def dijkstra(start, end):
 
     return path, distances[end]
 
-#Función para mostrar el camino más corto en un mapa
-def show_map(path=None):
-    # Initialize the map centered around Lima (approximately)
-    m = folium.Map(location=[-12.0464, -77.0428], zoom_start=12)
-
-    # Add paraderos (stops) as nodes
-    for _, row in paraderos_df.iterrows():
-        folium.Marker(
-            location=[row['Latitud'], row['Longitud']],
-            popup=row['Nombre'],
-            icon=folium.Icon(color="blue", icon="info-sign")
-        ).add_to(m)
-
-    # Add puntos de recarga (charging points) as nodes
-    for _, row in puntos_recarga_df.iterrows():
-        folium.Marker(
-            location=[row['Latitud'], row['Longitud']],
-            popup=row['Nombre'],
-            icon=folium.Icon(color="green", icon="info-sign")
-        ).add_to(m)
-
-    # Add path edges to map
-    for i in range(len(path) - 1):
-        node_start = path[i]
-        node_end = path[i + 1]
-        start_coords = (graph.nodes[node_start]['Latitud'], graph.nodes[node_start]['Longitud'])
-        end_coords = (graph.nodes[node_end]['Latitud'], graph.nodes[node_end]['Longitud'])
-        
-        # Draw a line between each consecutive nodes in path
-        folium.PolyLine(locations=[start_coords, end_coords], color="red", weight=2.5, opacity=1).add_to(m)
-
-    # Save map as HTML
-    map_output_path = '/mnt/data/optimized_route_map.html'
-    m.save(map_output_path)
-
-    # Open the map in the default web browser
-    webbrowser.open(map_output_path)
-    mapa_lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12) #Mapa Centro de Lima
-    minimap = MiniMap()
-    mapa_lima.add_child(minimap)
-    
-    #Añadir paraderos al mapa
-    for _, row in paraderos_df.iterrows():
-        color = 'red' if path and row['Nombre'] in path else 'blue'
-        Marker(
-            [row['Latitud'], row['Longitud']],
-            popup=row['Nombre'],
-            icon=folium.Icon(color=color)
-        ).add_to(mapa_lima)
-    
-    #Añadir puntos de recarga al mapa
-    for _, row in puntos_recarga_df.iterrows():
-        Marker(
-            [row['Latitud'], row['Longitud']],
-            popup=row['Nombre'],
-            icon=folium.Icon(color='green')
-        ).add_to(mapa_lima)
-
-#Agregar las líneas (aristas) entre los paraderos
-    for (inicio, fin), data in G.edges.items():
-        pos_inicio = G.nodes[inicio]['pos']
-        pos_fin = G.nodes[fin]['pos']
-        
-        #Verificar si la arista (inicio, fin) está en el camino mínimo
-        if path and inicio in path and fin in path:
-            idx_inicio = path.index(inicio)
-            color = 'red' if idx_inicio < len(path) - 1 and path[idx_inicio + 1] == fin else 'blue'
-        else:
-            #Aristas de color azul si están debajo de la distancia promedio, gris en caso contrario
-            color = 'blue' if data['weight'] <= promedio_distancia else 'gray'
-        
-        #Añadir la línea con el color determinado
-        PolyLine(
-            locations=[(pos_inicio[0], pos_inicio[1]), (pos_fin[0], pos_fin[1])],
-            color=color,
-            weight=2,
-            tooltip=f'Distancia: {data["weight"]:.2f} km'
-        ).add_to(mapa_lima)
-        
-    #Muestra el mapa
-    display_map(mapa_lima)
-
-#Crear un diccionario para almacenar las distancias entre los paraderos y puntos de recarga conectados
-distancias = {}
-for i, row1 in paraderos_df.iterrows():
-    for j, row2 in paraderos_df.iterrows():
-        if i < j:
-            distancia = euclidean_distance(row1['X'], row1['Y'], row2['X'], row2['Y'])
-            distancias[(row1['Nombre'], row2['Nombre'])] = distancia
-            distancias[(row2['Nombre'], row1['Nombre'])] = distancia 
-
-#Calcula la distancia promedio
-promedio_distancia = sum(distancias.values()) / len(distancias)
-
-#Función para mostrar el mapa en el navegador
-def display_map(map_object):
-    data = io.BytesIO()  #Crea un buffer en memoria para guardar los datos del mapa
-    map_object.save(data, close_file=False)  #Guarda el mapa en el buffer
-    encoded_map = base64.b64encode(data.getvalue()).decode('utf-8')  # Codifica el mapa en base64
-    html = f"<html><body><iframe src='data:text/html;base64,{encoded_map}' width='100%' height='100%' style='border:none;'></iframe></body></html>"  #Crea una cadena HTML con el mapa
-    with open("map.html", "w") as file:
-        file.write(html)  #Escribe el HTML en un archivo
-    webbrowser.open('file://' + os.path.realpath("map.html"))  #Abre el archivo en el navegador
-
-#Función para mostrar el grafo de paraderos y puntos de recarga
-def show_transport_graph():
-    G_transport = nx.Graph()
-    G_transport = nx.Graph() 
-    for _, row in paraderos_df.iterrows():
-        G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='paradero')
-    
-    for _, row in puntos_recarga_df.iterrows():
-        G_transport.add_node(row['Nombre'], pos=(row['Latitud'], row['Longitud']), tipo='punto_recarga')
-
-#Añadir aristas entre paraderos con las distancias como peso
-# Create a complete graph by connecting every node with every other node
-for node1 in G_transport.nodes:
-    for node2 in G_transport.nodes:
-        if node1 != node2:
-            distancia = euclidean_distance(G_transport.nodes[node1]['pos'][0], G_transport.nodes[node1]['pos'][1],
-                                      G_transport.nodes[node2]['pos'][0], G_transport.nodes[node2]['pos'][1])
-            G_transport.add_edge(node1, node2, weight=distancia)
-        G_transport.add_edge(inicio, fin, weight=distancia)
-
-    #Obtener posiciones para todos los nodos del grafo
-    pos = {node: (data['pos'][1], data['pos'][0]) for node, data in G_transport.nodes(data=True)}
-    
-    #Configurar el gráfico
-    plt.figure(figsize=(14, 12))
-    nx.draw(G_transport, pos, with_labels=True, node_color='skyblue', edge_color='gray', node_size=500, font_size=8)
-    
-    #Añadir etiquetas a las aristas con las distancias
-    edge_labels = {edge: f'{data["weight"]:.2f}' for edge, data in G_transport.edges.items()}
-    nx.draw_networkx_edge_labels(G_transport, pos, edge_labels=edge_labels, font_color='red', font_size=8)
-    plt.title('Grafo de Paraderos y Puntos de Recarga')
-    plt.show()
-
-#Función para mostrar el grafo de paraderos y puntos de recarga en un mapa
-def show_graph_map():
-    mapa_lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12) 
-    minimap = MiniMap() 
-    mapa_lima.add_child(minimap)  
-    
-    #Conjunto para rastrear nodos únicos ya agregados
-    nodos_agregados = set()
-    nodos_no_agregados = []
-    
-    #Añadir marcadores para paraderos
-    for _, row in paraderos_df.iterrows():
-        pos = (row['Latitud'], row['Longitud'])
-        if pos not in nodos_agregados:
-            try:
-                Marker(pos, popup=row['Nombre'], icon=folium.Icon(color='blue')).add_to(mapa_lima)
-                nodos_agregados.add(pos)
-            except Exception as e:
-                nodos_no_agregados.append((row['Nombre'], str(e)))
-        else:
-            nodos_no_agregados.append((row['Nombre'], "Coordenadas duplicadas, misma latitud y longitud"))
-
-    #Añadir marcadores para puntos de recarga
-    for _, row in puntos_recarga_df.iterrows():
-        pos = (row['Latitud'], row['Longitud'])
-        if pos not in nodos_agregados:
-            try:
-                Marker(pos, popup=row['Nombre'], icon=folium.Icon(color='green')).add_to(mapa_lima)
-                nodos_agregados.add(pos)
-            except Exception as e:
-                nodos_no_agregados.append((row['Nombre'], str(e)))
-        else:
-            nodos_no_agregados.append((row['Nombre'], "Coordenadas duplicadas, misma latitud y longitud"))
-    
-    #Mostrar nodos agregados y errores si existen
-    print(f"Nodos agregados: {len(nodos_agregados)}")
-    if nodos_no_agregados:
-        print("Errores al agregar nodos:")
-        for nodo, error in nodos_no_agregados:
-            print(f"{nodo}: {error}")
-
-    #Añadir aristas entre paraderos
-# Create a complete graph by connecting every node with every other node
-for node1 in G_transport.nodes:
-    for node2 in G_transport.nodes:
-        if node1 != node2:
-            distancia = euclidean_distance(G_transport.nodes[node1]['pos'][0], G_transport.nodes[node1]['pos'][1],
-                                      G_transport.nodes[node2]['pos'][0], G_transport.nodes[node2]['pos'][1])
-            G_transport.add_edge(node1, node2, weight=distancia)
-        pos_inicio = (G.nodes[inicio]['pos'][1], G.nodes[inicio]['pos'][0])  #Obtener posición de inicio
-        pos_fin = (G.nodes[fin]['pos'][1], G.nodes[fin]['pos'][0])  #Obtener posición de fin
-        PolyLine(locations=[pos_inicio, pos_fin], color='blue', weight=2, tooltip=f'Distancia: {distancia:.2f} km').add_to(mapa_lima)
-    display_map(mapa_lima)
-
-#Función para mostrar el camino mínimo en el grafo del mapa
-def show_min_path_graph():
-    #Verifica si la variable 'path' está definida y contiene elementos
-    if not hasattr(show_min_path_graph, 'path') or show_min_path_graph.path is None:
-        messagebox.showwarning("Advertencia", "Primero calcule la distancia mínima.")
-        return
-    #Llama a la función para mostrar el mapa con el camino mínimo
-    show_graph_map(min_path=show_min_path_graph.path)
-
 # Función para mostrar el mapa con una ruta
 def mostrar_ruta(path):
+    # Crear el mapa centrado en Lima
     mapa = folium.Map(location=[-12.0464, -77.0428], zoom_start=12)
+
+    # Agregar un clúster para los marcadores
+    marker_cluster = MarkerCluster().add_to(mapa)
+
+    # Agregar nodos del camino al clúster
     for node in path:
         data = G.nodes[node]
-        Marker(data['pos'], popup=node, icon=folium.Icon(color='blue')).add_to(mapa)
+        Marker(
+            data['pos'], 
+            popup=f"{node}", 
+            icon=folium.Icon(color='blue')
+        ).add_to(marker_cluster)
 
+    # Dibujar líneas entre los nodos del camino y agregar tooltips con distancias
     for i in range(len(path) - 1):
         start, end = path[i], path[i + 1]
         start_coords = G.nodes[start]['pos']
         end_coords = G.nodes[end]['pos']
-        PolyLine([start_coords, end_coords], color='red').add_to(mapa)
+        distance = G[start][end]['weight']
+        PolyLine(
+            [start_coords, end_coords],
+            color='red',
+            tooltip=f"Distancia: {distance:.2f} km"
+        ).add_to(mapa)
 
+    # Agregar puntos de recarga al clúster
+    for _, row in puntos_recarga_df.iterrows():
+        Marker(
+            location=[row["Latitud"], row["Longitud"]],
+            popup=row["Nombre"],
+            icon=folium.Icon(color="green")
+        ).add_to(marker_cluster)
+
+    # Guardar el mapa y abrirlo en el navegador
     mapa.save("ruta_optima.html")
     webbrowser.open("ruta_optima.html")
 
@@ -349,38 +173,6 @@ def calcular_minima_distancia(start, end):
     if path:
         mostrar_ruta(path)
         messagebox.showinfo("Ruta", f"Ruta: {' -> '.join(path)}\nDistancia total: {distance:.2f} km")
-
-#Función para mostrar el grafo en el mapa del nodo agregado (paradero o punto de recarga)
-def mostrar_grafo_mapa_nodo_agregado():
-    """Muestra el mapa con el último nodo agregado y su nodo más cercano con la arista en rojo."""
-    if not hasattr(mostrar_nodo_mas_cercano, 'ultimo_nodo') or not hasattr(mostrar_nodo_mas_cercano, 'nodo_cercano'):
-        messagebox.showwarning("Advertencia", "Primero identifique el nodo más cercano al último nodo.")
-        return
-    mapa_lima = folium.Map(location=[-12.0464, -77.0428], zoom_start=12)
-    minimap = MiniMap()
-    mapa_lima.add_child(minimap)
-
-    #Obtener las coordenadas del último nodo y del nodo más cercano
-    ultimo_nodo = mostrar_nodo_mas_cercano.ultimo_nodo
-    nodo_cercano = mostrar_nodo_mas_cercano.nodo_cercano
-    ultimas_coords = G.nodes[ultimo_nodo]['pos']
-    cercanas_coords = G.nodes[nodo_cercano]['pos']
-
-    #Añadir marcadores para el último nodo y el nodo más cercano
-    folium.Marker(ultimas_coords, popup=ultimo_nodo, icon=folium.Icon(color='red')).add_to(mapa_lima)
-    folium.Marker(cercanas_coords, popup=nodo_cercano, icon=folium.Icon(color='blue')).add_to(mapa_lima)
-
-    #Calcular la distancia entre el último nodo y el nodo más cercano
-    distancia = G[ultimo_nodo][nodo_cercano]['weight']
-
-    #Dibujar una línea roja entre ellos con un tooltip que muestra la distancia
-    folium.PolyLine(
-        locations=[ultimas_coords, cercanas_coords],
-        color='red',
-        weight=5,
-        tooltip=f'Distancia: {distancia:.2f} cientos de km'
-    ).add_to(mapa_lima)
-    display_map(mapa_lima)
 
 # Función para agregar un nuevo nodo
 def agregar_nuevo_nodo(latitud, longitud, tipo, nombre):
@@ -427,20 +219,6 @@ def encontrar_nodo_mas_cercano(nodo):
             menor_distancia = distancia
             nodo_mas_cercano = vecino
     return nodo_mas_cercano
-
-#Función para mostrar el nodo más cercano al último nodo agregado
-def mostrar_nodo_mas_cercano():
-    ultimo_nodo = list(G.nodes)[-1]  #Asume que el último nodo agregado está al final
-    nodo_cercano = encontrar_nodo_mas_cercano(ultimo_nodo)
-    mostrar_nodo_mas_cercano.ultimo_nodo = ultimo_nodo
-    mostrar_nodo_mas_cercano.nodo_cercano = nodo_cercano
-    if nodo_cercano:
-        distancia = G[ultimo_nodo][nodo_cercano]['weight']
-        label_nodo_cercano.config(
-            text=f"Ruta: {nodo_cercano} -> {ultimo_nodo}\nDistancia: {distancia:.2f} en cientos de kilómetros\nDistancia Real: {distancia*100:.2f} km"
-        )
-    else:
-        label_nodo_cercano.config(text="No hay nodos cercanos")
 
 # Función para mostrar mapa vacío
 def mostrar_mapa():
@@ -658,7 +436,6 @@ def iniciar_interfaz():
 
     button_frame.grid_columnconfigure(0, weight=1)
     button_frame.grid_columnconfigure(1, weight=1)
-
 
     ventana.mainloop()
 
